@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import FloatingButton from "../components/FloatingButton";
 import Icon from "react-native-vector-icons/MaterialIcons";
+import { Camera as ExpoCamera } from "expo-camera";
+import { BarCodeScanner } from "expo-barcode-scanner";
 
 type TotpCode = {
   id: string;
@@ -18,13 +20,21 @@ type TotpCode = {
 };
 
 const AuthenticatorScreen: React.FC = () => {
-  const [searchText, setSearchText] = useState("");
-  const [modalVisible, setModalVisible] = useState(false); // State for modal visibility
+  const [modalVisible, setModalVisible] = useState(false);
+  const [scannerVisible, setScannerVisible] = useState(false);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [totpCodes, setTotpCodes] = useState<TotpCode[]>([
     { id: "1", account: "Google: elisa.beckett@gmail.com", code: "461 927" },
     { id: "2", account: "Google: hikingfan@gmail.com", code: "605 011" },
     { id: "3", account: "Google: surfingfan@gmail.com", code: "556 121" },
   ]);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await ExpoCamera.requestCameraPermissionsAsync();
+      setHasPermission(status === "granted");
+    })();
+  }, []);
 
   const renderCodeItem = ({ item }: { item: TotpCode }) => (
     <View style={styles.codeItem}>
@@ -36,10 +46,23 @@ const AuthenticatorScreen: React.FC = () => {
     </View>
   );
 
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
+    setScannerVisible(false);
+    console.log("QR Code Data:", data);
+    // Process or add scanned data to TOTP list
+  };
+
   const addNewTotp = () => {
     setModalVisible(false);
-    // Here, you could add logic to add a new TOTP to the `totpCodes` array
+    // Logic to add a new TOTP to `totpCodes` array
   };
+
+  if (hasPermission === null) {
+    return <Text>Requesting for camera permission</Text>;
+  }
+  if (hasPermission === false) {
+    return <Text>No access to camera</Text>;
+  }
 
   return (
     <View style={styles.container}>
@@ -63,10 +86,19 @@ const AuthenticatorScreen: React.FC = () => {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Add New TOTP</Text>
-            <TextInput placeholder="TOTP Code" style={styles.input} />
+            <Text style={styles.modalTitle}>Add Setup Key</Text>
+            <TextInput placeholder="Setup Code" style={styles.input} />
             <TouchableOpacity style={styles.addButton} onPress={addNewTotp}>
               <Text style={styles.addButtonText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.scanButton}
+              onPress={() => {
+                setModalVisible(false);
+                setScannerVisible(true);
+              }}
+            >
+              <Text style={styles.scanButtonText}>Scan QR Code</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.cancelButton}
@@ -75,6 +107,22 @@ const AuthenticatorScreen: React.FC = () => {
               <Text style={styles.cancelButtonText}>Cancel</Text>
             </TouchableOpacity>
           </View>
+        </View>
+      </Modal>
+
+      {/* QR Code Scanner */}
+      <Modal visible={scannerVisible} animationType="slide">
+        <BarCodeScanner
+          onBarCodeScanned={handleBarCodeScanned}
+          style={StyleSheet.absoluteFillObject}
+        />
+        <View style={styles.scannerOverlay}>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setScannerVisible(false)}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
         </View>
       </Modal>
     </View>
@@ -125,11 +173,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addButtonText: { color: "white", fontWeight: "bold" },
-  cancelButton: {
-    marginTop: 10,
+  scanButton: {
+    backgroundColor: "#6200ee",
+    paddingVertical: 10,
+    borderRadius: 5,
     alignItems: "center",
+    marginTop: 10,
+  },
+  scanButtonText: { color: "white", fontWeight: "bold" },
+  cancelButton: {
+    alignItems: "center",
+    marginTop: 10,
   },
   cancelButtonText: { color: "#6200ee" },
+  scannerOverlay: {
+    position: "absolute",
+    bottom: 20,
+    width: "100%",
+    alignItems: "center",
+  },
 });
 
 export default AuthenticatorScreen;
