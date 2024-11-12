@@ -1,15 +1,28 @@
-// App.tsx
-import React from 'react';
-import {NavigationContainer} from '@react-navigation/native';
-// import {createNativeStackNavigator} from '@react-navigation/native-stack';
-import LoginScreen from '../screens/LoginScreen';
-import AuthenticatorScreen from '../screens/AuthenticatorScreen';
-import {SafeAreaProvider} from 'react-native-safe-area-context';
-import SignupScreen from '../screens/SignupScreen';
-import { createStackNavigator } from '@react-navigation/stack';
+import React, { useEffect } from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import * as SplashScreen from "expo-splash-screen";
+import LoginScreen from "../screens/LoginScreen";
+import AuthenticatorScreen from "../screens/AuthenticatorScreen";
+import SignupScreen from "../screens/SignupScreen";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { createStackNavigator } from "@react-navigation/stack";
 
 const Stack = createStackNavigator();
+
 const Index = () => {
+  useEffect(() => {
+    const prepare = async () => {
+      try {
+        await SplashScreen.preventAutoHideAsync();
+      } catch (e) {
+        console.warn(e);
+      } finally {
+        SplashScreen.hideAsync();
+      }
+    };
+
+    prepare();
+  }, []);
 
   return (
     <SafeAreaProvider>
@@ -18,17 +31,17 @@ const Index = () => {
           <Stack.Screen
             name="Login"
             component={LoginScreen}
-            options={{headerShown: false}}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="Signup"
             component={SignupScreen}
-            options={{headerShown: false}}
+            options={{ headerShown: false }}
           />
           <Stack.Screen
             name="Authenticator"
             component={AuthenticatorScreen}
-            options={{headerShown: false}}
+            options={{ headerShown: false }}
           />
         </Stack.Navigator>
       </NavigationContainer>
