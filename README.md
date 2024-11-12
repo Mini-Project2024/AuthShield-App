@@ -1,4 +1,9 @@
-# Steps to Run
+# AuthShield 🛡️
+<hr>
+<div>
+  <img src="https://ibb.co/5kBFCN3" width="auto" height="auto">
+</div>
+## Steps to Run
 1. Type the following command on terminal to install the dependencies
 ```bash
 npm install
