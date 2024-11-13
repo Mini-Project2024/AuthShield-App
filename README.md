@@ -13,3 +13,7 @@ npm install
 ```bash
 npx expo start
 ```
+3. To reset the cache and run type the command
+```bash
+npx expo start -c
+```
