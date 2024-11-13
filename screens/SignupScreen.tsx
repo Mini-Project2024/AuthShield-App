@@ -1,8 +1,8 @@
 // screens/SignupScreen.tsx
 import React, { useState } from "react";
-import { View, Text, Button, TextInput, StyleSheet } from "react-native";
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { NavigationProp } from "@react-navigation/native";
-import { TouchableOpacity } from "react-native-gesture-handler";
+import { LinearGradient } from "expo-linear-gradient";
 
 type SignupScreenProps = {
   navigation: NavigationProp<any, any>;
@@ -18,55 +18,122 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
       // Perform signup logic here (e.g., send data to API)
       navigation.navigate("Authenticator");
     } else {
-      alert("Passwords do not match");
+      Alert.alert("Error", "Passwords do not match");
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Create a New Account</Text>
-      <TextInput
-        placeholder="Username"
-        value={username}
-        onChangeText={setUsername}
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Password"
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-      <TextInput
-        placeholder="Confirm Password"
-        value={confirmPassword}
-        onChangeText={setConfirmPassword}
-        secureTextEntry
-        style={styles.input}
-      />
-      <Button title="Sign Up" onPress={handleSignup} />
-      <View style={{ flexDirection: "row", alignItems: "center" }}>
-          <Text>Already have an account? </Text>
+    <LinearGradient colors={["#4a90e2", "#145DA0"]} style={styles.gradient}>
+      <View style={styles.container}>
+        <Text style={styles.title}>Create a New Account</Text>
+        <Text style={styles.subtitle}>Join AuthShield for secure access</Text>
+        <TextInput
+          placeholder="Username"
+          value={username}
+          onChangeText={setUsername}
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
+        <TextInput
+          placeholder="Password"
+          value={password}
+          onChangeText={setPassword}
+          secureTextEntry
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
+        <TextInput
+          placeholder="Confirm Password"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          secureTextEntry
+          style={styles.input}
+          placeholderTextColor="#aaa"
+        />
+        <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
+          <Text style={styles.signupButtonText}>Sign Up</Text>
+        </TouchableOpacity>
+        <View style={styles.loginContainer}>
+          <Text style={styles.loginText}>Already have an account?</Text>
           <TouchableOpacity onPress={() => navigation.navigate("Login")}>
-            <Text style={styles.link}>Login</Text>
+            <Text style={styles.link}> Login</Text>
           </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center" },
-  title: { fontSize: 18, fontWeight: "bold", marginBottom: 20 },
-  input: {
-    width: "80%",
-    padding: 10,
-    borderWidth: 1,
-    borderRadius: 5,
-    marginBottom: 10,
+  gradient: {
+    flex: 1,
   },
-  link: { color: "blue", textDecorationLine: "underline" },
+  container: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 5,
+    textAlign: "center",
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#e0e0e0",
+    marginBottom: 30,
+    textAlign: "center",
+  },
+  input: {
+    width: "85%",
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 10,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    marginBottom: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  signupButton: {
+    width: "85%",
+    padding: 15,
+    backgroundColor: "#1E88E5",
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  signupButtonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  loginContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 25,
+  },
+  loginText: {
+    color: "#e0e0e0",
+    fontSize: 15,
+  },
+  link: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 15,
+    textDecorationLine: "underline",
+  },
 });
 
 export default Signup;
