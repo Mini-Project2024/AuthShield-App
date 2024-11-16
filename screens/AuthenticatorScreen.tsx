@@ -50,6 +50,7 @@ const AuthenticatorScreen: React.FC = () => {
     setScannerVisible(false);
     console.log("QR Code Data:", data);
     // Process or add scanned data to TOTP list
+    //otpauth://user={}?secret=yvhvhgvhgvhg
   };
 
   const addNewTotp = () => {
