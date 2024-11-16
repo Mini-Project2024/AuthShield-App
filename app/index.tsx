@@ -7,7 +7,14 @@ import SignupScreen from "../screens/SignupScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { createStackNavigator } from "@react-navigation/stack";
 
-const Stack = createStackNavigator();
+// Define types for the stack navigator routes
+type RootStackParamList = {
+  Login: undefined;
+  Signup: undefined;
+  Authenticator: undefined;
+};
+
+const Stack = createStackNavigator<RootStackParamList>();
 
 const Index = () => {
   useEffect(() => {
