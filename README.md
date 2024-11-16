@@ -1,7 +1,7 @@
 # AuthShield 🛡️
 <hr>
-<div>
-  <img src="https://i.postimg.cc/fLnLN8fn/Whats-App-Image-2024-11-12-at-19-40-54-95bc6c0d.jpg" width="250px" height="600px" alt="Splash screen">
+<div align="center">
+  <img src="https://i.postimg.cc/yxpSjW5M/splash.png" width="250px" height="600px" alt="Splash screen">
 </div>
 
 ## Steps to Run
@@ -12,4 +12,8 @@ npm install
 2. To run the app type this command below
 ```bash
 npx expo start
+```
+3. To reset the cache and run type the command
+```bash
+npx expo start -c
 ```
