@@ -1,4 +1,3 @@
-// screens/SignupScreen.tsx
 import React, { useState } from "react";
 import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { NavigationProp } from "@react-navigation/native";
@@ -9,16 +8,47 @@ type SignupScreenProps = {
 };
 
 const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
-  const handleSignup = () => {
-    if (password === confirmPassword) {
-      // Perform signup logic here (e.g., send data to API)
-      navigation.navigate("Authenticator");
-    } else {
-      Alert.alert("Error", "Passwords do not match");
+  const handleSignup = async () => {
+    if (!email || !password || !confirmPassword) {
+      Alert.alert("Error", "Please fill in all fields!");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Passwords do not match!");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://13.60.192.115:5000/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({ 
+          email, 
+          password, 
+          confirm_password: confirmPassword 
+        }),
+      });
+  
+      if (!response.ok) {
+        const errorData = await response.json();
+        Alert.alert("Error", errorData.error || "Signup failed!");
+        return;
+      }
+  
+      const result = await response.json();
+      Alert.alert("Success", "Signup successful!");
+      navigation.navigate("Login");
+    } catch (error) {
+      console.error("Signup error:", error);
+      Alert.alert("Error", "Network error. Please check your connection.");
     }
   };
 
@@ -28,9 +58,9 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
         <Text style={styles.title}>Create a New Account</Text>
         <Text style={styles.subtitle}>Join AuthShield for secure access</Text>
         <TextInput
-          placeholder="Username"
-          value={username}
-          onChangeText={setUsername}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
           style={styles.input}
           placeholderTextColor="#aaa"
         />
@@ -65,6 +95,9 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
 };
 
 const styles = StyleSheet.create({
+  disabledButton: {
+    opacity: 0.7,
+  },
   gradient: {
     flex: 1,
   },

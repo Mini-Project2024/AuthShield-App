@@ -1,6 +1,5 @@
-// screens/login.tsx
 import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { NavigationProp } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -9,8 +8,36 @@ type LoginScreenProps = {
 };
 
 const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const handleLogin = async () => {
+    if (!email || !password) {
+      Alert.alert("Error", "Please fill in all fields!");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://13.60.192.115:5000/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        Alert.alert("Success", "Login successful!");
+        navigation.navigate("Authenticator");
+      } else {
+        Alert.alert("Error", result.error || "Login failed!");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Something went wrong. Please try again later.");
+    }
+  };
 
   return (
     <LinearGradient colors={["#4a90e2", "#145DA0"]} style={styles.gradient}>
@@ -18,9 +45,9 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
         <Text style={styles.title}>Welcome to AuthShield</Text>
         <Text style={styles.subtitle}>Secure Your Account</Text>
         <TextInput
-          placeholder="Username"
-          value={username}
-          onChangeText={setUsername}
+          placeholder="Email"
+          value={email}
+          onChangeText={setEmail}
           style={styles.input}
           placeholderTextColor="#aaa"
         />
@@ -32,7 +59,7 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
           style={styles.input}
           placeholderTextColor="#aaa"
         />
-        <TouchableOpacity style={styles.loginButton} onPress={() => navigation.navigate("Authenticator")}>
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
           <Text style={styles.loginButtonText}>Login</Text>
         </TouchableOpacity>
         <View style={styles.signupContainer}>

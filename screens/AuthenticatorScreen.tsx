@@ -72,7 +72,7 @@ const AuthenticatorScreen: React.FC = () => {
     })();
 
     // Generate 10 unique recovery codes when component mounts
-    generateRecoveryCodes();
+    // generateRecoveryCodes();
   }, []);
 
   useEffect(() => {
@@ -103,12 +103,12 @@ const AuthenticatorScreen: React.FC = () => {
   //   );
   // }, 1000);
 
-  const generateRecoveryCodes = () => {
-    const codes = Array.from({ length: 10 }, () =>
-      Math.random().toString(36).substr(2, 8).toUpperCase()
-    );
-    setRecoveryCodes(codes);
-  };
+  // const generateRecoveryCodes = () => {
+  //   const codes = Array.from({ length: 10 }, () =>
+  //     Math.random().toString(36).substr(2, 8).toUpperCase()
+  //   );
+  //   setRecoveryCodes(codes);
+  // };
 
   const renderCodeItem = ({ item }: { item: TotpCode }) => (
     <View style={styles.codeItem}>
@@ -186,12 +186,12 @@ const AuthenticatorScreen: React.FC = () => {
         </View>
         {submenuVisible && (
           <View style={styles.submenu}>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.submenuItem}
               onPress={() => setRecoveryModalVisible(true)}
             >
               <Text style={styles.submenuText}>Recovery Codes</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
             <TouchableOpacity
               style={styles.logoutButton}
               onPress={handleLogout}
