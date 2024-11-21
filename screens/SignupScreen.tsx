@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { NavigationProp } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -11,10 +11,45 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const validateEmail = (email: string) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const validatePassword = (password: string) => {
+    const minLength = 8;
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+    return (
+      password.length >= minLength &&
+      hasUpperCase &&
+      hasLowerCase &&
+      hasNumber &&
+      hasSpecialChar
+    );
+  };
 
   const handleSignup = async () => {
     if (!email || !password || !confirmPassword) {
       Alert.alert("Error", "Please fill in all fields!");
+      return;
+    }
+
+    if (!validateEmail(email)) {
+      Alert.alert("Error", "Please enter a valid email address!");
+      return;
+    }
+
+    if (!validatePassword(password)) {
+      Alert.alert(
+        "Weak Password",
+        "Password must be at least 8 characters long and include uppercase, lowercase, numbers, and special characters."
+      );
       return;
     }
 
@@ -23,32 +58,35 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
       return;
     }
 
+    setLoading(true); 
+
     try {
       const response = await fetch("http://13.61.95.75:5000/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Accept": "application/json"
+          "Accept": "application/json",
         },
-        body: JSON.stringify({ 
-          email, 
-          password, 
-          confirm_password: confirmPassword 
+        body: JSON.stringify({
+          email,
+          password,
         }),
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
         Alert.alert("Error", errorData.error || "Signup failed!");
         return;
       }
-  
+
       const result = await response.json();
       Alert.alert("Success", "Signup successful!");
       navigation.navigate("Login");
     } catch (error) {
       console.error("Signup error:", error);
       Alert.alert("Error", "Network error. Please check your connection.");
+    } finally {
+      setLoading(false); // Hide loading indicator
     }
   };
 
@@ -63,6 +101,8 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
           onChangeText={setEmail}
           style={styles.input}
           placeholderTextColor="#aaa"
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
         <TextInput
           placeholder="Password"
@@ -80,8 +120,16 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
           style={styles.input}
           placeholderTextColor="#aaa"
         />
-        <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-          <Text style={styles.signupButtonText}>Sign Up</Text>
+        <TouchableOpacity
+          style={[styles.signupButton, (!email || !password || !confirmPassword) && styles.disabledButton]}
+          onPress={handleSignup}
+          disabled={!email || !password || !confirmPassword || loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Text style={styles.signupButtonText}>Sign Up</Text>
+          )}
         </TouchableOpacity>
         <View style={styles.loginContainer}>
           <Text style={styles.loginText}>Already have an account?</Text>
@@ -96,7 +144,7 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   disabledButton: {
-    opacity: 0.7,
+    opacity: 0.5,
   },
   gradient: {
     flex: 1,
