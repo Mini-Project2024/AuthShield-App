@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  ActivityIndicator,
+} from "react-native";
 import { NavigationProp } from "@react-navigation/native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -10,15 +18,18 @@ type LoginScreenProps = {
 const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields!");
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("Error", "Please fill in both email and password.");
       return;
     }
 
+    setLoading(true);
+
     try {
-      const response = await fetch("http://13.60.192.115:5000/login", {
+      const response = await fetch("http://13.61.95.75:5000/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -32,10 +43,15 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
         Alert.alert("Success", "Login successful!");
         navigation.navigate("Authenticator");
       } else {
-        Alert.alert("Error", result.error || "Login failed!");
+        Alert.alert("Error", result.error || "Invalid email or password.");
       }
     } catch (error) {
-      Alert.alert("Error", "Something went wrong. Please try again later.");
+      Alert.alert(
+        "Error",
+        "Unable to connect to the server. Please try again later."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -50,6 +66,9 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
           onChangeText={setEmail}
           style={styles.input}
           placeholderTextColor="#aaa"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          accessibilityLabel="Enter your email"
         />
         <TextInput
           placeholder="Password"
@@ -58,13 +77,26 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
           secureTextEntry
           style={styles.input}
           placeholderTextColor="#aaa"
+          accessibilityLabel="Enter your password"
         />
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Login</Text>
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={handleLogin}
+          accessibilityLabel="Log in to your account"
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginButtonText}>Login</Text>
+          )}
         </TouchableOpacity>
         <View style={styles.signupContainer}>
           <Text style={styles.signupText}>New to App?</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Signup")}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Signup")}
+            accessibilityLabel="Go to Signup page"
+          >
             <Text style={styles.link}> Signup</Text>
           </TouchableOpacity>
         </View>
@@ -122,6 +154,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 6,
+    opacity: 1,
   },
   loginButtonText: {
     color: "#fff",

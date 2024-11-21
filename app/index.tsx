@@ -7,6 +7,7 @@ import SignupScreen from "../screens/SignupScreen";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { createStackNavigator } from "@react-navigation/stack";
 
+
 // Define types for the stack navigator routes
 type RootStackParamList = {
   Login: undefined;

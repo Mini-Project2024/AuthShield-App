@@ -24,7 +24,7 @@ const Signup: React.FC<SignupScreenProps> = ({ navigation }) => {
     }
 
     try {
-      const response = await fetch("http://13.60.192.115:5000/signup", {
+      const response = await fetch("http://13.61.95.75:5000/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

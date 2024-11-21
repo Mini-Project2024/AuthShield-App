@@ -8,7 +8,7 @@ CORS(app, origins="*", supports_credentials=True)
 
 # Main database connection 
 db_config = {
-    "host": "authshield-app.clo6ioommyum.eu-north-1.rds.amazonaws.com",
+    "host": "localhost",
     "user": "admin",
     "password": "admin123",
     "database": "authshieldUsers"
