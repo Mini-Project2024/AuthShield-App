@@ -17,6 +17,7 @@ import FloatingButton from "../components/FloatingButton";
 import Icon from "react-native-vector-icons/MaterialIcons";
 import { Camera as ExpoCamera } from "expo-camera";
 import { BarCodeScanner } from "expo-barcode-scanner";
+import axios from "axios";
 
 type RootStackParamList = {
   Login: undefined;
@@ -85,30 +86,9 @@ const AuthenticatorScreen: React.FC = () => {
         return updatedCodes;
       });
     }, 1000); // Set timer to update only once every second
-  
+
     return () => clearInterval(interval); // Cleanup on unmount
   }, []);
-  
-
-  // // Start the timer
-  // const timer = setInterval(() => {
-  //   setTotpCodes((prevCodes) =>
-  //     prevCodes.map((code) => {
-  //       const newTimeRemaining = 30 - Math.floor((Date.now() / 1000) % 30); // Time remaining in seconds
-  //       return {
-  //         ...code,
-  //         timeRemaining: newTimeRemaining,
-  //       };
-  //     })
-  //   );
-  // }, 1000);
-
-  // const generateRecoveryCodes = () => {
-  //   const codes = Array.from({ length: 10 }, () =>
-  //     Math.random().toString(36).substr(2, 8).toUpperCase()
-  //   );
-  //   setRecoveryCodes(codes);
-  // };
 
   const renderCodeItem = ({ item }: { item: TotpCode }) => (
     <View style={styles.codeItem}>
@@ -123,21 +103,22 @@ const AuthenticatorScreen: React.FC = () => {
     </View>
   );
 
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
+  const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScannerVisible(false);
-    console.log("QR Code Data:", data);
-
-    // Process or add scanned data to TOTP list
-    if (data) {
-      setTotpCodes((prev) => [
-        ...prev,
-        {
-          id: `${prev.length + 1}`,
-          account: `Scanned Account ${prev.length + 1}`,
-          code: "123 456",
-          timeRemaining: 30,
-        },
-      ]);
+    try {
+      const response = await axios
+        .post("http://13.61.95.75:5000/scan", {
+          qr_code_data: data, // Send the QR code data to the server
+        })
+        .then((response) => {
+          console.log("Response:", response.data);
+        })
+        .catch((error) => {
+          console.error("Error sending QR code data from frontend to backend:", error);
+        });
+      // console.log("Response from server:", response.data);
+    } catch (error) {
+      console.error("Error sending QR code data:", error);
     }
   };
 
