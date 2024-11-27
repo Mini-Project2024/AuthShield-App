@@ -106,17 +106,20 @@ const AuthenticatorScreen: React.FC = () => {
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScannerVisible(false);
     try {
-      const response = await axios
-        .post("http://13.61.95.75:5000/scan", {
+      // Sending the QR code data as a query parameter in the GET request
+      const response = await axios.post(
+        "http://13.61.95.75:5000/scan",
+        {
           qr_code_data: data, // Send the QR code data to the server
-        })
-        .then((response) => {
-          console.log("Response:", response.data);
-        })
-        .catch((error) => {
-          console.error("Error sending QR code data from frontend to backend:", error);
-        });
-      // console.log("Response from server:", response.data);
+        },
+        {
+          headers: {
+            "Content-Type": "application/json", // Ensure correct content type is sent
+          },
+        }
+      );
+      console.log("Response from server:", response.data);
+      console.log("Response from qr data:", data);
     } catch (error) {
       console.error("Error sending QR code data:", error);
     }

@@ -157,10 +157,10 @@ def schedule_totp_for_user(user_uuid, totp_secret):
 
 
 # Endpoint to scan QR code and decrypt URL
-@app.route("/scan", methods=["GET"])
+@app.route("/scan", methods=["POST"])
 def scan_qr():
     try:
-        qr_code_data = requests.json.get('qr_code_data')
+        qr_code_data = request.get_json().get('qr_code_data')
         if qr_code_data:
             logging.info(f"Raw QR code payload: {qr_code_data}")
             qr_code_payload = qr_code_data.replace("'", '"')
@@ -173,7 +173,7 @@ def scan_qr():
 
             # Send API request to decrypt URL
             response = requests.post(
-                "http://13.61.95.75:6000/decrypt-url",
+                "http://13.61.95.75:5001/decrypt-url",
                 json={
                     "uuid": payload["uuid"],
                     "encrypted_url": payload["encrypted_url"]
