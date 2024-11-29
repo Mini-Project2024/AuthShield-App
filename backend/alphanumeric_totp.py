@@ -10,7 +10,7 @@ import os
 class AlphanumericTOTP(pyotp.TOTP):
     def __init__(self, secret, digits=6, digest=hashlib.sha1, interval=30):
         """
-        Initialize the AlphanumericTOTP instance
+        Initialize the Alphanumeric TOTP instance
 
         Args:
             secret (str): The secret key in base32 format
