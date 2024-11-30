@@ -108,7 +108,7 @@ const AuthenticatorScreen: React.FC = () => {
     try {
       // Sending the QR code data as a query parameter in the GET request
       const response = await axios.post(
-        "http://13.61.95.75:5000/scan",
+        "http://13.203.127.173:5000/scan",
         {
           qr_code_data: data, // Send the QR code data to the server
         },

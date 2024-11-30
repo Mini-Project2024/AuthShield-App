@@ -29,7 +29,7 @@ const Login: React.FC<LoginScreenProps> = ({ navigation }) => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://13.61.95.75:5000/login", {
+      const response = await fetch("http://13.203.127.173:5000/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
