@@ -163,10 +163,10 @@ def scan_qr():
         qr_code_data = request.get_json().get('qr_code_data')
         if qr_code_data:
             logging.info(f"Raw QR code payload: {qr_code_data}")
-            qr_code_payload = qr_code_data.replace("'", '"')
+            
 
             try:
-                payload = json.loads(qr_code_payload)
+                payload = json.loads(qr_code_data)
             except json.JSONDecodeError as e:
                 logging.error(f"Error parsing JSON from QR code payload: {e}")
                 return jsonify({"error": "Error parsing QR code payload."}), 400

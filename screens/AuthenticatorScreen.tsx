@@ -43,7 +43,7 @@ const AuthenticatorScreen: React.FC = () => {
   const [submenuVisible, setSubmenuVisible] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
-  const [facing, setFacing] = useState<CameraType>('back');
+  const [facing, setFacing] = useState<CameraType>("back");
   const [totpCodes, setTotpCodes] = useState<TotpCode[]>([
     {
       id: "1",
@@ -68,7 +68,7 @@ const AuthenticatorScreen: React.FC = () => {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
 
   useEffect(() => {
-    setFacing(current => 'back');
+    setFacing((current) => "back");
     (async () => {
       if (!permission?.granted) {
         // Request permission if not already granted
@@ -114,32 +114,129 @@ const AuthenticatorScreen: React.FC = () => {
     </View>
   );
 
+  // const handleBarCodeScanned = async ({ data }: { data: string }) => {
+  //   setScanned(true);
+
+  //   try {
+  //     // First check if server is reachable
+  //     console.log("Testing server connection...");
+  //     try {
+  //       await axios.get("http://13.203.127.173:5000/", { timeout: 3000 });
+  //       console.log("Server is reachable!");
+  //     } catch (error) {
+  //       console.error("Server health check failed:", error);
+  //       throw new Error(
+  //         "Cannot connect to server - please check if server is running"
+  //       );
+  //     }
+
+  //     console.log("Attempting to send QR data:", data);
+
+  //     const response = await axios.post(
+  //       "http://13.203.127.173:5000/scan",
+  //       {
+  //         qr_code_data: data,
+  //       },
+  //       {
+  //         headers: {
+  //           "Content-Type": "application/json",
+  //           Accept: "application/json",
+  //         },
+  //         timeout: 10000, // Increased timeout
+  //       }
+  //     );
+
+  //     console.log("Response received:", response.data);
+  //   } catch (error) {
+  //     if (axios.isAxiosError(error)) {
+  //       if (error.code === "ECONNABORTED") {
+  //         console.error(
+  //           "Connection timed out - server took too long to respond"
+  //         );
+  //       } else if (!error.response) {
+  //         console.error("Network error - checking details...");
+  //         // Test if we can reach the IP at all
+  //         try {
+  //           await fetch("http://13.203.127.173:5000");
+  //         } catch (fetchError) {
+  //           console.error(
+  //             "Cannot reach server IP - possible network/firewall issue"
+  //           );
+  //         }
+  //       } else {
+  //         console.error("Server error response:", error.response.data);
+  //       }
+
+  //       // Log full error details
+  //       console.error("Full error details:", {
+  //         message: error.message,
+  //         code: error.code,
+  //         config: error.config,
+  //       });
+  //     }
+  //   } finally {
+  //     setScannerVisible(false);
+  //     setScanned(false);
+  //   }
+  // };
+
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
+    
     try {
-      // Sending the QR code data as a query parameter in the GET request
-      // console.log(data);
+      
+
       const response = await axios.post(
         "http://13.203.127.173:5000/scan",
         {
-          qr_code_data: data, // Send the QR code data to the server
+          qr_code_data: data  // Send parsed data, not the string
         },
         {
           headers: {
-            "Content-Type": "application/json", // Ensure correct content type is sent
+            "Content-Type": "application/json",
+            "Accept": "application/json"
           },
+          timeout: 10000,
         }
       );
-      console.log("Response from server:", response.data);
-      console.log("Response from qr data:", data);
+      
+      console.log("Response received:", response.data);
+      
     } catch (error) {
-      console.error("Error sending QR code data:", error);
+      if (axios.isAxiosError(error)) {
+        // Add more detailed logging
+        console.error("Request config:", {
+          url: error.config?.url,
+          method: error.config?.method,
+          data: error.config?.data
+        });
+        
+        if (!error.response) {
+          // Try alternative fetch method
+          try {
+            const fetchResponse = await fetch("http://13.203.127.173:5000/scan", {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                qr_code_data: JSON.parse(data)
+              })
+            });
+            const result = await fetchResponse.json();
+            console.log("Fetch succeeded:", result);
+            return;
+          } catch (fetchError) {
+            console.error("Fetch also failed:", fetchError);
+          }
+        }
+      }
+      console.error("Final error:", error);
     } finally {
       setScannerVisible(false);
       setScanned(false);
     }
-  };
-
+};
   const addNewTotp = () => {
     if (setupKey.trim() !== "") {
       setTotpCodes((prev) => [
@@ -159,7 +256,6 @@ const AuthenticatorScreen: React.FC = () => {
   if (permission === null) {
     return <Text>Requesting for camera permission</Text>;
   }
-  
 
   const handleLogout = () => {
     navigation.navigate("Login");
@@ -307,6 +403,8 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject, // Fills the entire screen
     backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent black
+    justifyContent: "center",
+    alignItems: "center",
   },
   headerText: {
     fontSize: 26,
