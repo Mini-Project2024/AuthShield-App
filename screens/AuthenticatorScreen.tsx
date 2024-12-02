@@ -182,47 +182,58 @@ const AuthenticatorScreen: React.FC = () => {
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
-    
-    try {
-      
 
+    let parsedData: any;
+    try {
+      // Check if the scanned data is a JSON string
+      try {
+        parsedData = JSON.parse(data); // Attempt to parse the QR data
+      } catch (e) {
+        console.error("Scanned data is not a valid JSON string:", data);
+        return;
+      }
+
+      console.log("Orginal Data:" + data);
+      console.log("Parsed Data:" + parsedData);
+      // Send the parsed data as an object
       const response = await axios.post(
         "http://13.203.127.173:5000/scan",
         {
-          qr_code_data: data  // Send parsed data, not the string
+          qr_code_data: parsedData, // Send the data directly as JSON
         },
         {
           headers: {
             "Content-Type": "application/json",
-            "Accept": "application/json"
+            Accept: "application/json",
           },
           timeout: 10000,
         }
       );
-      
+
       console.log("Response received:", response.data);
-      
     } catch (error) {
       if (axios.isAxiosError(error)) {
-        // Add more detailed logging
         console.error("Request config:", {
           url: error.config?.url,
           method: error.config?.method,
-          data: error.config?.data
+          data: error.config?.data,
         });
-        
+
         if (!error.response) {
-          // Try alternative fetch method
           try {
-            const fetchResponse = await fetch("http://13.203.127.173:5000/scan", {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                qr_code_data: JSON.parse(data)
-              })
-            });
+            const fetchResponse = await fetch(
+              "http://13.203.127.173:5000/scan",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  qr_code_data: parsedData, // Use parsed data
+                }),
+              }
+            );
+
             const result = await fetchResponse.json();
             console.log("Fetch succeeded:", result);
             return;
@@ -236,7 +247,8 @@ const AuthenticatorScreen: React.FC = () => {
       setScannerVisible(false);
       setScanned(false);
     }
-};
+  };
+
   const addNewTotp = () => {
     if (setupKey.trim() !== "") {
       setTotpCodes((prev) => [
