@@ -15,8 +15,7 @@ import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import FloatingButton from "../components/FloatingButton";
 import Icon from "react-native-vector-icons/MaterialIcons";
-import { Camera as ExpoCamera } from "expo-camera";
-import { BarCodeScanner } from "expo-barcode-scanner";
+import { CameraView, CameraType, useCameraPermissions } from "expo-camera";
 import axios from "axios";
 
 type RootStackParamList = {
@@ -42,7 +41,9 @@ const AuthenticatorScreen: React.FC = () => {
   const [recoveryModalVisible, setRecoveryModalVisible] = useState(false);
   const [scannerVisible, setScannerVisible] = useState(false);
   const [submenuVisible, setSubmenuVisible] = useState(false);
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
+  const [facing, setFacing] = useState<CameraType>('back');
   const [totpCodes, setTotpCodes] = useState<TotpCode[]>([
     {
       id: "1",
@@ -67,14 +68,24 @@ const AuthenticatorScreen: React.FC = () => {
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
 
   useEffect(() => {
+    setFacing(current => 'back');
     (async () => {
-      const { status } = await ExpoCamera.requestCameraPermissionsAsync();
-      setHasPermission(status === "granted");
+      if (!permission?.granted) {
+        // Request permission if not already granted
+        const result = await requestPermission();
+        if (result.granted) {
+          console.log("Camera permission granted");
+        } else {
+          console.log("Camera permission denied");
+        }
+      } else {
+        console.log("Camera permission already granted");
+      }
     })();
 
     // Generate 10 unique recovery codes when component mounts
     // generateRecoveryCodes();
-  }, []);
+  }, [permission, requestPermission]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -104,9 +115,10 @@ const AuthenticatorScreen: React.FC = () => {
   );
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
-    setScannerVisible(false);
+    setScanned(true);
     try {
       // Sending the QR code data as a query parameter in the GET request
+      // console.log(data);
       const response = await axios.post(
         "http://13.203.127.173:5000/scan",
         {
@@ -122,6 +134,9 @@ const AuthenticatorScreen: React.FC = () => {
       console.log("Response from qr data:", data);
     } catch (error) {
       console.error("Error sending QR code data:", error);
+    } finally {
+      setScannerVisible(false);
+      setScanned(false);
     }
   };
 
@@ -141,12 +156,10 @@ const AuthenticatorScreen: React.FC = () => {
     setSetupKey("");
   };
 
-  if (hasPermission === null) {
+  if (permission === null) {
     return <Text>Requesting for camera permission</Text>;
   }
-  if (hasPermission === false) {
-    return <Text>No access to camera</Text>;
-  }
+  
 
   const handleLogout = () => {
     navigation.navigate("Login");
@@ -260,19 +273,23 @@ const AuthenticatorScreen: React.FC = () => {
           </View>
         </Modal>
         <Modal visible={scannerVisible} animationType="slide">
-          {/* QR Code Scanner */}
-          <BarCodeScanner
-            onBarCodeScanned={handleBarCodeScanned}
+          <CameraView
             style={StyleSheet.absoluteFillObject}
-          />
-          <View style={styles.scannerOverlay}>
-            <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={() => setScannerVisible(false)}
-            >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
+            facing={facing}
+            barcodeScannerSettings={{
+              barcodeTypes: ["qr"],
+            }}
+            onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+          >
+            <View style={styles.overlay}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setScannerVisible(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </CameraView>
         </Modal>
       </View>
     </TouchableWithoutFeedback>
@@ -286,6 +303,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject, // Fills the entire screen
+    backgroundColor: "rgba(0, 0, 0, 0.5)", // Semi-transparent black
   },
   headerText: {
     fontSize: 26,
