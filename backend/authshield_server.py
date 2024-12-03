@@ -205,14 +205,15 @@ def scan_qr():
                 schedule_totp_for_user(payload["uuid"], totp_secret)
 
                 return jsonify({
-                    "message": "QR code scanned successfully and TOTP secret stored."
+                    "message": "QR code scanned successfully and TOTP secret stored.",
+                    "decrypted_url": decrypted_url
                 })
             else:
                 logging.error(f"Error decrypting URL: {response.json()}")
                 return jsonify({"error": "Error decrypting URL."}), 400
 
         else:
-            return jsonify({"message": "No QR code detected."}), 400
+            return jsonify({"message": "No QR code detected.", "decrypted_url": decrypted_url}), 400
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return jsonify({"error": str(e)}), 500

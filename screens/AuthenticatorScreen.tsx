@@ -44,26 +44,7 @@ const AuthenticatorScreen: React.FC = () => {
   const [permission, requestPermission] = useCameraPermissions();
   const [scanned, setScanned] = useState(false);
   const [facing, setFacing] = useState<CameraType>("back");
-  const [totpCodes, setTotpCodes] = useState<TotpCode[]>([
-    {
-      id: "1",
-      account: "Google: elisa.beckett@gmail.com",
-      code: "461 927",
-      timeRemaining: 30,
-    },
-    {
-      id: "2",
-      account: "Google: hikingfan@gmail.com",
-      code: "605 011",
-      timeRemaining: 30,
-    },
-    {
-      id: "3",
-      account: "Google: surfingfan@gmail.com",
-      code: "556 121",
-      timeRemaining: 30,
-    },
-  ]);
+  const [totpCodes, setTotpCodes] = useState<TotpCode[]>([]);
   const [setupKey, setSetupKey] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
 
@@ -180,74 +161,128 @@ const AuthenticatorScreen: React.FC = () => {
   //   }
   // };
 
+  
+  useEffect(() => {
+    const timers = totpCodes.map((code) => {
+      return setTimeout(async () => {
+        try {
+          const response = await axios.post(
+            "http://13.203.127.173:5000/scan",
+            {
+              qr_code_data: { 
+                encrypted_url: code.account, 
+                uuid: code.id 
+              }
+            },
+            {
+              headers: {
+                "Content-Type": "application/json",
+                Accept: "application/json",
+              },
+              timeout: 10000,
+            }
+          );
+
+          if (response.data.message) {
+            setTotpCodes((prevCodes) => 
+              prevCodes.map((prevCode) => 
+                prevCode.id === code.id 
+                  ? {
+                      ...prevCode,
+                      code: response.data.code,
+                      timeRemaining: response.data.timeRemaining
+                    }
+                  : prevCode
+              )
+            );
+          }
+        } catch (error) {
+          console.error("Error updating TOTP:", error);
+        }
+      }, code.timeRemaining * 1000);
+    });
+
+    return () => timers.forEach(clearTimeout);
+  }, [totpCodes]);
+
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
-
+  
     let parsedData: any;
     try {
-      // Check if the scanned data is a JSON string
+      // Attempt to parse the QR data as JSON
       try {
-        parsedData = JSON.parse(data); // Attempt to parse the QR data
+        parsedData = JSON.parse(data);
       } catch (e) {
         console.error("Scanned data is not a valid JSON string:", data);
         return;
       }
-
-      console.log("Orginal Data:" + data);
-      console.log("Parsed Data:" + parsedData);
-      // Send the parsed data as an object
-      const response = await axios.post(
-        "http://13.203.127.173:5000/scan",
-        {
-          qr_code_data: parsedData, // Send the data directly as JSON
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
+  
+      console.log("Original Data:", data);
+      console.log("Parsed Data:", parsedData);
+  
+      // Check if the parsed data contains the necessary QR code info
+      if (parsedData.encrypted_url && parsedData.uuid) {
+        // Send the QR code data to the backend for decryption
+        const response = await axios.post(
+          "http://13.203.127.173:5000/scan",
+          {
+            qr_code_data: parsedData, // Send the parsed data
           },
-          timeout: 10000,
-        }
-      );
-
-      console.log("Response received:", response.data);
-    } catch (error) {
-      if (axios.isAxiosError(error)) {
-        console.error("Request config:", {
-          url: error.config?.url,
-          method: error.config?.method,
-          data: error.config?.data,
-        });
-
-        if (!error.response) {
-          try {
-            const fetchResponse = await fetch(
-              "http://13.203.127.173:5000/scan",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  qr_code_data: parsedData, // Use parsed data
-                }),
-              }
-            );
-
-            const result = await fetchResponse.json();
-            console.log("Fetch succeeded:", result);
-            return;
-          } catch (fetchError) {
-            console.error("Fetch also failed:", fetchError);
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+            timeout: 10000, // Set a timeout of 10 seconds
           }
+        );
+  
+        console.log("Response received from server:", response.data);
+  
+        // Handle successful response from the backend
+        if (response.data.message) {
+          console.log("Success:", response.data.message);
+  
+          // Extract relevant data from the backend response
+          const { message, account, code, timeRemaining } = response.data;
+  
+          // Add the new account and TOTP code to the state
+          
+          setTotpCodes((prevCodes) => [
+            ...prevCodes,
+            { id: String(prevCodes.length + 1), account, code, timeRemaining },
+          ]);
+        } else {
+          console.error("No message in the server response.");
         }
+      } else {
+        console.error("Invalid QR code data.");
       }
-      console.error("Final error:", error);
+    } catch (error) {
+      // Enhanced error handling
+      if (axios.isAxiosError(error)) {
+        console.error("Axios error occurred:", error.message);
+        if (error.response) {
+          console.error("Server response:", {
+            status: error.response.status,
+            data: error.response.data,
+          });
+        } else {
+          console.error("No server response or network error.");
+        }
+      } else {
+        console.error("Unknown error occurred:", error);
+      }
     } finally {
+      // Reset scanner state
       setScannerVisible(false);
       setScanned(false);
     }
   };
+  
+  
+
 
   const addNewTotp = () => {
     if (setupKey.trim() !== "") {
