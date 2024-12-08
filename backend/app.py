@@ -21,7 +21,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 # Database configuration
 db_config = {
-    "host": "13.61.95.75",
+    "host": "13.203.127.173",
     "user": "admin",
     "password": "admin123",
     "database": "authshieldUsers"
@@ -77,12 +77,19 @@ def schedule_totp_for_user(user_uuid, totp_secret):
 @app.route("/scan", methods=["GET"])
 def scan_qr():
     try:
-        qr_code_data = requests.json.get('qrcode_data')
+        # Check if the user is logged in by checking the session for 'uid'
+        if 'uid' not in session:
+            return jsonify({"error": "User is not logged in"}), 401
+        
+        # Get QR code data from the request
+        qr_code_data = request.json.get('qrcode_data')
+        
         if qr_code_data:
             logging.info(f"Raw QR code payload: {qr_code_data}")
             qr_code_payload = qr_code_data.replace("'", '"')
 
             try:
+                # Try to load the JSON payload from the QR code data
                 payload = json.loads(qr_code_payload)
             except json.JSONDecodeError as e:
                 logging.error(f"Error parsing JSON from QR code payload: {e}")
@@ -104,16 +111,19 @@ def scan_qr():
                 # Extract TOTP secret from URL
                 totp_secret = decrypted_url.split("secret=")[1].split("&")[0]
 
-                # Save or update TOTP secret in the database
+                # Get the logged-in user's 'uid' from the session
+                user_uid_from_session = session['uid']
+
+                # Save or update the TOTP secret in the database with the user_uid
                 connection = get_db_connection()
                 cursor = connection.cursor()
                 cursor.execute(
                     """
-                    INSERT INTO user_totp (user_uuid, totp_secret)
-                    VALUES (%s, %s)
-                    ON DUPLICATE KEY UPDATE totp_secret = VALUES(totp_secret)
+                    INSERT INTO user_totp (user_uuid, totp_secret, uid)
+                    VALUES (%s, %s, %s)
+                    ON DUPLICATE KEY UPDATE totp_secret = VALUES(totp_secret), uid = VALUES(uid)
                     """,
-                    (payload["uuid"], totp_secret)
+                    (payload["uuid"], totp_secret, user_uid_from_session)
                 )
                 connection.commit()
                 connection.close()
