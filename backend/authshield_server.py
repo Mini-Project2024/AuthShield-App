@@ -9,7 +9,6 @@ import re
 import time
 from functools import wraps
 from datetime import datetime, timezone
-from dotenv import load_dotenv
 import requests
 from alphanumeric_totp import AlphanumericTOTP
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -18,7 +17,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-load_dotenv()
 
 # Flask app configuration
 app = Flask(__name__)
