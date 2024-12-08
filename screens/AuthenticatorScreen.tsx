@@ -167,30 +167,27 @@ const AuthenticatorScreen: React.FC = () => {
       return setTimeout(async () => {
         try {
           const response = await axios.post(
-            "http://13.203.127.173:5000/scan",
+            "http://13.203.127.173:5000/update-totp",  // Call the new endpoint
             {
-              qr_code_data: { 
-                encrypted_url: code.account, 
-                uuid: code.id 
-              }
+              uid: code.id,  // Send only the UUID
             },
             {
               headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json",
               },
-              timeout: 10000,
+              timeout: 10000,  // You can adjust this if necessary
             }
           );
-
+  
           if (response.data.message) {
-            setTotpCodes((prevCodes) => 
-              prevCodes.map((prevCode) => 
-                prevCode.id === code.id 
+            setTotpCodes((prevCodes) =>
+              prevCodes.map((prevCode) =>
+                prevCode.id === code.id
                   ? {
                       ...prevCode,
                       code: response.data.code,
-                      timeRemaining: response.data.timeRemaining
+                      timeRemaining: response.data.timeRemaining,
                     }
                   : prevCode
               )
@@ -199,11 +196,12 @@ const AuthenticatorScreen: React.FC = () => {
         } catch (error) {
           console.error("Error updating TOTP:", error);
         }
-      }, code.timeRemaining * 1000);
+      }, code.timeRemaining * 1000); // Trigger after timeRemaining
     });
-
+  
     return () => timers.forEach(clearTimeout);
   }, [totpCodes]);
+  
 
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
