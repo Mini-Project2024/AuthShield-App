@@ -169,7 +169,7 @@ const AuthenticatorScreen: React.FC = () => {
           const response = await axios.post(
             "http://13.203.127.173:5000/update-totp",  // Call the new endpoint
             {
-              uid: code.id,  // Send only the UUID
+              account: code.account, // Send only the UUID
             },
             {
               headers: {
@@ -179,7 +179,7 @@ const AuthenticatorScreen: React.FC = () => {
               timeout: 10000,  // You can adjust this if necessary
             }
           );
-  
+           console.log(response);
           if (response.data.message) {
             setTotpCodes((prevCodes) =>
               prevCodes.map((prevCode) =>
@@ -194,6 +194,7 @@ const AuthenticatorScreen: React.FC = () => {
             );
           }
         } catch (error) {
+          
           console.error("Error updating TOTP:", error);
         }
       }, code.timeRemaining * 1000); // Trigger after timeRemaining
@@ -279,36 +280,56 @@ const AuthenticatorScreen: React.FC = () => {
   };
   
   const addNewTotp = async () => {
-    if (setupKey.trim() !== "") {
-      try {
-        // Make an API request to generate the TOTP code using the setup key
-        const response = await axios.post(
-          "http://13.203.127.173:5000/generateTotp", // Replace with your backend endpoint to generate TOTP
-          {
-            setup_key: setupKey,
-          },
-          {
-            headers: {
-              "Content-Type": "application/json",
-              Accept: "application/json",
-            },
-          }
-        );
+    // if (setupKey.trim() !== "") {
+    //   try {
+    //     // Make an API request to generate the TOTP code using the setup key
+    //     const response = await axios.post(
+    //       "http://13.203.127.173:5000/generateTotp", // Replace with your backend endpoint to generate TOTP
+    //       {
+    //         account: "account", // Add proper account data
+    //       },
+    //       {
+    //         headers: {
+    //           "Content-Type": "application/json",
+    //           Accept: "application/json",
+    //         },
+    //       }
+    //     );
   
-        const { uid, account, code, timeRemaining } = response.data;
+    //     const { uid, account, code, timeRemaining } = response.data;
   
-        // Add the generated TOTP code to the state
-        setTotpCodes((prevCodes) => [
-          ...prevCodes,
-          { id: uid,account: account,code: code,timeRemaining: timeRemaining },
-        ]);
+    //     // Check if the account already exists in the totpCodes array
+    //     setTotpCodes((prevCodes) => {
+    //       // If the account exists, update the code; otherwise, add a new entry
+    //       const existingAccountIndex = prevCodes.findIndex(
+    //         (item) => item.account === account
+    //       );
   
-        setModalVisible(false);
-        setSetupKey("");
-      } catch (error) {
-        console.error("Error generating TOTP:", error);
-      }
-    }
+    //       if (existingAccountIndex >= 0) {
+    //         // Account exists, update the TOTP code and timeRemaining
+    //         const updatedCodes = [...prevCodes];
+    //         updatedCodes[existingAccountIndex] = {
+    //           id: uid,
+    //           account,
+    //           code,
+    //           timeRemaining,
+    //         };
+    //         return updatedCodes;
+    //       } else {
+    //         // Account doesn't exist, add a new entry
+    //         return [
+    //           ...prevCodes,
+    //           { id: uid, account, code, timeRemaining },
+    //         ];
+    //       }
+    //     });
+  
+    //     setModalVisible(false);
+    //     setSetupKey("");
+    //   } catch (error) {
+    //     console.error("Error generating TOTP:", error);
+    //   }
+    // }
   };
   
   if (permission === null) {
@@ -360,7 +381,7 @@ const AuthenticatorScreen: React.FC = () => {
         <FlatList
           data={totpCodes}
           renderItem={renderCodeItem}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item.account}
           contentContainerStyle={styles.listContainer}
         />
         <FloatingButton onPress={() => setModalVisible(true)} />

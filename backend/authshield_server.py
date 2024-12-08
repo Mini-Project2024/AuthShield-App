@@ -248,6 +248,48 @@ def scan_qr():
         logger.error(f"Scan QR error: {str(e)}")
         return jsonify({"error": f"Failed to process QR code: {str(e)}"}), 500
 
+
+# @app.route("/generateTotp", methods=["POST"])
+# @cross_origin()
+# @login_required
+# def generate_totp_from_account():
+#     logger.info("=== Generate TOTP Request Start ===")
+#     try:
+#         request_data = request.get_json()
+#         account = request_data.get("account")
+        
+#         if not account:
+#             return jsonify({"error": "Account is required"}), 400
+
+#         # Fetch the TOTP secret from the database for the given account
+#         conn = get_db_connection()
+#         cursor = conn.cursor()
+#         cursor.execute("SELECT totp_secret,uid FROM user_totp WHERE account = %s", (account,))
+#         result = cursor.fetchone()
+        
+#         if result is None:
+#             return jsonify({"error": "TOTP secret not found for the account"}), 404
+
+#         totp_secret = result[0] 
+#         uid=result[1]
+#         conn.close()
+
+#         # Use the secret to generate the TOTP code
+#         current_code, time_remaining = generate_totp(totp_secret)
+#         if current_code is None:
+#             return jsonify({"error": "Failed to generate TOTP"}), 500
+
+#         return jsonify({
+#             "uid":uid ,
+#             "account": account,
+#             "code": current_code,
+#             "timeRemaining": time_remaining
+#         }), 200
+
+#     except Exception as e:
+#         logger.error(f"Error in /generateTotp: {str(e)}")
+#         return jsonify({"error": f"Failed to process TOTP generation: {str(e)}"}), 500
+    
 def generate_totp(totp_secret):
     try:
         current_time = int(time.time())
@@ -274,19 +316,19 @@ def update_totp():
         request_data = request.get_json()  # Parse JSON payload
         logger.info(f"TOTP Update Data Received: {request_data}")
 
-        # Extract the uuid from the request
-        user_uid = request_data.get("uid")
-        if not user_uid:
-            return jsonify({"error": "UUID missing in request payload"}), 400
+        # Extract the account from the request
+        user_account = request_data.get("account")
+        if not user_account:
+            return jsonify({"error": "Account missing in request payload"}), 400
 
-        # Fetch the TOTP secret from the database for the user
+        # Fetch the TOTP secret from the database for the user using account
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT totp_secret FROM user_totp WHERE uid = %s", (user_uid,))
+        cursor.execute("SELECT totp_secret FROM user_totp WHERE account = %s", (user_account,))
         result = cursor.fetchone()
-        
+
         if result is None:
-            return jsonify({"error": "TOTP secret not found for the user"}), 400
+            return jsonify({"error": "TOTP secret not found for the account"}), 400
 
         totp_secret = result[0]
         conn.close()
@@ -299,17 +341,18 @@ def update_totp():
 
         # Return the TOTP code and the time remaining until the next code
         time_until_next = 30 - (current_time % 30)
+        logger.info(totp)
         return jsonify({
             "message": "TOTP code updated successfully",
             "code": current_code,
             "timeRemaining": time_until_next
         }), 200
+       
 
     except Exception as e:
         logger.error(f"Update TOTP error: {str(e)}")
         return jsonify({"error": f"Failed to update TOTP: {str(e)}"}), 500
-
-
+    
 # Function to schedule TOTP generation every 30 seconds
 def schedule_totp_for_user(user_uuid, totp_secret):
     scheduler = BackgroundScheduler()
