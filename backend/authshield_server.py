@@ -5,6 +5,7 @@ import mysql.connector
 from flask_cors import CORS, cross_origin
 import bcrypt
 import os
+import re
 import time
 from functools import wraps
 from datetime import datetime, timezone
@@ -208,25 +209,31 @@ def scan_qr():
         decrypted_data = decrypt_response.json()
         decrypted_url = decrypted_data.get("decrypted_url")
         if not decrypted_url:
+            logger.info("decrypted url missing")
             return jsonify({"error": "Decrypted URL missing in response"}), 500
-
+        else:
+            logger.info(decrypted_url)
+           
+        account = decrypted_url.split("/totp/")[1].split("?")[0]
+        logger.info(f"Extracted account: {account}")
         totp_secret = decrypted_url.split("secret=")[1].split("&")[0]
-
+        
         conn = get_db_connection()
         cursor = conn.cursor()
         try:
             cursor.execute(
                 """
-                INSERT INTO user_totp (user_uuid, totp_secret, uid)
-                VALUES (%s, %s, %s)
+                INSERT INTO user_totp (user_uuid, totp_secret,account,uid)
+                VALUES (%s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE 
                     totp_secret = VALUES(totp_secret),
+                    account = VALUES(account),
                     uid = VALUES(uid)
                 """,
-                (user_uuid_from_qr, totp_secret, session['uid'])
+                (user_uuid_from_qr, totp_secret , account, session['uid'])
             )
             conn.commit()
-            logger.info(f"TOTP data stored for UUID: {user_uuid_from_qr}")
+            logger.info(f"TOTP data stored for UUID: {user_uuid_from_qr} with account: {account}")
         finally:
             cursor.close()
             conn.close()
