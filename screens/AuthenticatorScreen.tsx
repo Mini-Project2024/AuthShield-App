@@ -243,13 +243,12 @@ const AuthenticatorScreen: React.FC = () => {
           console.log("Success:", response.data.message);
   
           // Extract relevant data from the backend response
-          const { message, account, code, timeRemaining } = response.data;
+          const { message, uid, account, code, timeRemaining } = response.data;
   
           // Add the new account and TOTP code to the state
-          
           setTotpCodes((prevCodes) => [
             ...prevCodes,
-            { id: String(prevCodes.length + 1), account, code, timeRemaining },
+            { id: uid, account, code, timeRemaining },
           ]);
         } else {
           console.error("No message in the server response.");
@@ -279,25 +278,39 @@ const AuthenticatorScreen: React.FC = () => {
     }
   };
   
-  
-
-
-  const addNewTotp = () => {
+  const addNewTotp = async () => {
     if (setupKey.trim() !== "") {
-      setTotpCodes((prev) => [
-        ...prev,
-        {
-          id: `${prev.length + 1}`,
-          account: `New Account ${prev.length + 1}`,
-          code: "789 012",
-          timeRemaining: 30,
-        },
-      ]);
+      try {
+        // Make an API request to generate the TOTP code using the setup key
+        const response = await axios.post(
+          "http://13.203.127.173:5000/generateTotp", // Replace with your backend endpoint to generate TOTP
+          {
+            setup_key: setupKey,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+            },
+          }
+        );
+  
+        const { uid, account, code, timeRemaining } = response.data;
+  
+        // Add the generated TOTP code to the state
+        setTotpCodes((prevCodes) => [
+          ...prevCodes,
+          { id: uid,account: account,code: code,timeRemaining: timeRemaining },
+        ]);
+  
+        setModalVisible(false);
+        setSetupKey("");
+      } catch (error) {
+        console.error("Error generating TOTP:", error);
+      }
     }
-    setModalVisible(false);
-    setSetupKey("");
   };
-
+  
   if (permission === null) {
     return <Text>Requesting for camera permission</Text>;
   }

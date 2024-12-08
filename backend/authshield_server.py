@@ -282,7 +282,7 @@ def update_totp():
         # Fetch the TOTP secret from the database for the user
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT totp_secret FROM user_totp WHERE user_uuid = %s", (user_uid,))
+        cursor.execute("SELECT totp_secret FROM user_totp WHERE uid = %s", (user_uid,))
         result = cursor.fetchone()
         
         if result is None:
