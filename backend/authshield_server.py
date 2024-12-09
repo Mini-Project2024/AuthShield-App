@@ -290,7 +290,7 @@ def scan_qr():
 #         logger.error(f"Error in /generateTotp: {str(e)}")
 #         return jsonify({"error": f"Failed to process TOTP generation: {str(e)}"}), 500
     
-def generate_totp(totp_secret):
+def generate_totp(totp_secret, user_uuid):
     try:
         current_time = int(time.time())
         window_start = current_time - (current_time % 30)
@@ -301,11 +301,38 @@ def generate_totp(totp_secret):
 
         logging.info(f"Current TOTP Code: {current_code}")
         logging.info(f"Time until next code: {time_until_next} seconds")
-
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO user_totp(next_code) VALUES(%s) WHERE user_uuid = %s", (current_code,user_uuid))
+        conn.commit()
+        cursor.close()
+        conn.close()
         return current_code, time_until_next
     except Exception as e:
         logging.error(f"Error generating TOTP: {e}")
         return None, None
+
+@app.route("/get-updated-totp", methods=["POST"])
+@cross_origin()
+@login_required
+def code_gen():
+    try:
+        request_data = request.get_json()  # Parse JSON payload
+        logger.info(f"TOTP Update Data Received: {request_data}")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM user_totp WHERE user_uuid = %s", (request_data.uuid,))
+        updated_data = cursor.fetchall()
+        print(f"Retrieved Data from Database: {updated_data}")
+        conn.close()
+        return jsonify({
+            "message": "TOTP code updated successfully",
+            "code": updated_data,
+        }), 200
+    except Exception as e:
+        logger.error(f"Update TOTP error: {str(e)}")
+        return jsonify({"error": f"Failed to update TOTP: {str(e)}"}), 500
 
 @app.route("/update-totp", methods=["POST"])
 @cross_origin()
@@ -361,7 +388,7 @@ def schedule_totp_for_user(user_uuid, totp_secret):
         generate_totp,
         'interval',
         seconds=30,
-        args=[totp_secret],
+        args=[totp_secret, user_uuid],
         id=f"totp_job_{user_uuid}",
     )
     scheduler.start()

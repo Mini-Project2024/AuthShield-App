@@ -48,6 +48,8 @@ const AuthenticatorScreen: React.FC = () => {
   const [setupKey, setSetupKey] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[]>([]);
 
+  const [allIntervales,setAllIntervals] = useState<any[]>([]);
+
   useEffect(() => {
     setFacing((current) => "back");
     (async () => {
@@ -82,6 +84,15 @@ const AuthenticatorScreen: React.FC = () => {
     return () => clearInterval(interval); // Cleanup on unmount
   }, []);
 
+  useEffect(()=>{
+    return ()=>{
+      try{
+        allIntervales.forEach(clearInterval);
+      }catch(e){
+
+      }
+    }
+  },[])
   const renderCodeItem = ({ item }: { item: TotpCode }) => (
     <View style={styles.codeItem}>
       <Text style={styles.accountText}>{item.account}</Text>
@@ -161,49 +172,85 @@ const AuthenticatorScreen: React.FC = () => {
   //   }
   // };
 
-  
-  useEffect(() => {
-    const timers = totpCodes.map((code) => {
-      return setTimeout(async () => {
-        try {
-          const response = await axios.post(
-            "http://13.203.127.173:5000/update-totp",  // Call the new endpoint
-            {
-              account: code.account, // Send only the UUID
-            },
-            {
-              headers: {
-                "Content-Type": "application/json",
-                Accept: "application/json",
-              },
-              timeout: 10000,  // You can adjust this if necessary
-            }
-          );
-           console.log(response);
-          if (response.data.message) {
-            setTotpCodes((prevCodes) =>
-              prevCodes.map((prevCode) =>
-                prevCode.id === code.id
-                  ? {
-                      ...prevCode,
-                      code: response.data.code,
-                      timeRemaining: response.data.timeRemaining,
-                    }
-                  : prevCode
-              )
-            );
-          }
-        } catch (error) {
-          
-          console.error("Error updating TOTP:", error);
+  const getCode = async (code:TotpCode) => {
+    try {
+      console.log(code.account)
+      const response = await axios.post(
+        "http://13.203.127.173:5000/get-updated-totp",  // Call the new endpoint
+        {
+          account: code.account, // Send only the UUID
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+          timeout: 30000,  // You can adjust this if necessary
         }
-      }, code.timeRemaining * 1000); // Trigger after timeRemaining
-    });
-  
-    return () => timers.forEach(clearTimeout);
-  }, [totpCodes]);
+      );
+      // if(totpCodes.length)
+      //  console.log(response.data.code+" "+totpCodes[totpCodes.length-1].code);
+
+      //  if(totpCodes.length!=0 && response.data.code == totpCodes[totpCodes.length-1].code)return;
+
+      //  console.log("Code changed");
+
+      // if (response.data.message) {
+
+      //     setTotpCodes((prevCodes) =>
+      //       prevCodes.map((prevCode) =>
+      //         prevCode.id === code.id
+      //           ? {
+      //               ...prevCode,
+      //               code: response.data.code,
+      //               timeRemaining: response.data.timeRemaining,
+      //             }
+      //           : prevCode
+      //       )
+      //     );
+        
+      // }
+      let f = false;
+      for(const totp of totpCodes){
+        if(totp.account == code.account){
+          f = true;
+          break;
+        }
+      }
+      console.log(response.data.code);
+      
+      if(f){
+        setTotpCodes((prev)=>{
+          return prev.map((eachCode)=>{
+            return (eachCode.account == code.account && (!eachCode.code || eachCode.code == code.code))?{...eachCode,"code":response.data.code}:eachCode
+          })
+        })
+      }else{
+        setTotpCodes([...totpCodes,{...response.data,"account":code.account}]);
+      }
+      console.log("code")
+      console.log(code)
+      // makeInterval(code);
+    } catch (error) {
+      
+      console.error("Error updating TOTP:", error);
+    }
+  }
+  async function makeInterval(code:TotpCode){
+    await getCode(code);
+    const newInterval = setInterval(async ()=>{
+      console.log("Called")
+      await getCode(code);
+    }, 14000); // Trigger after timeRemaining
+    setAllIntervals([...allIntervales,newInterval]);
+  }
+
+
   
 
+  useEffect(()=>{
+    console.log(totpCodes);
+  },[totpCodes])
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
   
@@ -243,6 +290,7 @@ const AuthenticatorScreen: React.FC = () => {
         if (response.data.message) {
           console.log("Success:", response.data.message);
   
+          console.log(response.data);
           // Extract relevant data from the backend response
           const { message, uid, account, code, timeRemaining } = response.data;
   
@@ -251,6 +299,9 @@ const AuthenticatorScreen: React.FC = () => {
             ...prevCodes,
             { id: uid, account, code, timeRemaining },
           ]);
+          await getCode({ id: uid, account, code, timeRemaining });
+          await makeInterval({ id: uid, account, code, timeRemaining });
+
         } else {
           console.error("No message in the server response.");
         }
