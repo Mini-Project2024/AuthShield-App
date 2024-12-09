@@ -146,6 +146,52 @@ def login():
         if 'conn' in locals():
             conn.close()
 
+@app.route("/get-totp-data", methods=["GET"])
+@cross_origin()
+@login_required
+def get_totp_data():
+    try:
+        uid = session.get("uid")  # Get user ID from session or token
+
+        if not uid:
+            return jsonify({"error": "Unauthorized"}), 401
+
+        conn = get_db_connection()
+        cursor = conn.cursor()
+
+        # Fetch account, next_code, and user UUID
+        cursor.execute(
+            "SELECT account, next_code, uid FROM user_totp WHERE uid = %s AND 2faenabled = 1", 
+            (uid,)
+        )
+        totp_records = cursor.fetchall()
+
+        # Structure the response
+        totp_data = [
+            {
+                "id": record[2],  
+                "account": record[0],
+                "code": record[1] or "",  # Default to empty string if `next_code` is None
+                "timeRemaining": 30  # Initialize countdown
+            }
+            for record in totp_records
+        ]
+
+        return jsonify({
+            "totp_enabled": len(totp_data) > 0,
+            "totp_data": totp_data
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error fetching TOTP data: {str(e)}")
+        return jsonify({"error": "Failed to fetch TOTP data"}), 500
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()
+
+
 # Logout route
 @app.route("/logout", methods=["POST"])
 @cross_origin()

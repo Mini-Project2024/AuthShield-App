@@ -93,6 +93,45 @@ const AuthenticatorScreen: React.FC = () => {
       }
     }
   },[])
+
+  useEffect(() => {
+    const fetchTotpsAfterLogin = async () => {
+      try {
+        const response = await axios.get<{ 
+          totp_enabled: boolean; 
+          totp_data: Array<{ id: string; account: string; code: string; timeRemaining: number }>}>
+          ("http://13.203.127.173:5000/get-totp-data", {
+          headers: {
+            "Content-Type": "application/json",
+            Accept: "application/json",
+          },
+        });
+  
+        console.log(response.data)
+        if (response.data.totp_enabled) {
+          const totpList: TotpCode[] = response.data.totp_data.map((totp) => ({
+            id: totp.id,  
+            account: totp.account,
+            code: totp.code || "", 
+            timeRemaining: totp.timeRemaining || 30, 
+          }));
+
+          setTotpCodes(totpList);
+          for (const code of totpList) {
+            await getCode(code); // Fetch the current TOTP code
+            await makeInterval(code); // Start updating the code periodically
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching TOTP data after login:", error);
+      }
+    };
+  
+    // Fetch TOTP codes after login
+    fetchTotpsAfterLogin();
+  }, []);
+  
+
   const renderCodeItem = ({ item }: { item: TotpCode }) => (
     <View style={styles.codeItem}>
       <Text style={styles.accountText}>{item.account}</Text>
@@ -106,71 +145,6 @@ const AuthenticatorScreen: React.FC = () => {
     </View>
   );
 
-  // const handleBarCodeScanned = async ({ data }: { data: string }) => {
-  //   setScanned(true);
-
-  //   try {
-  //     // First check if server is reachable
-  //     console.log("Testing server connection...");
-  //     try {
-  //       await axios.get("http://13.203.127.173:5000/", { timeout: 3000 });
-  //       console.log("Server is reachable!");
-  //     } catch (error) {
-  //       console.error("Server health check failed:", error);
-  //       throw new Error(
-  //         "Cannot connect to server - please check if server is running"
-  //       );
-  //     }
-
-  //     console.log("Attempting to send QR data:", data);
-
-  //     const response = await axios.post(
-  //       "http://13.203.127.173:5000/scan",
-  //       {
-  //         qr_code_data: data,
-  //       },
-  //       {
-  //         headers: {
-  //           "Content-Type": "application/json",
-  //           Accept: "application/json",
-  //         },
-  //         timeout: 10000, // Increased timeout
-  //       }
-  //     );
-
-  //     console.log("Response received:", response.data);
-  //   } catch (error) {
-  //     if (axios.isAxiosError(error)) {
-  //       if (error.code === "ECONNABORTED") {
-  //         console.error(
-  //           "Connection timed out - server took too long to respond"
-  //         );
-  //       } else if (!error.response) {
-  //         console.error("Network error - checking details...");
-  //         // Test if we can reach the IP at all
-  //         try {
-  //           await fetch("http://13.203.127.173:5000");
-  //         } catch (fetchError) {
-  //           console.error(
-  //             "Cannot reach server IP - possible network/firewall issue"
-  //           );
-  //         }
-  //       } else {
-  //         console.error("Server error response:", error.response.data);
-  //       }
-
-  //       // Log full error details
-  //       console.error("Full error details:", {
-  //         message: error.message,
-  //         code: error.code,
-  //         config: error.config,
-  //       });
-  //     }
-  //   } finally {
-  //     setScannerVisible(false);
-  //     setScanned(false);
-  //   }
-  // };
 
   const getCode = async (code:TotpCode) => {
     try {
@@ -188,28 +162,7 @@ const AuthenticatorScreen: React.FC = () => {
           timeout: 30000,  // You can adjust this if necessary
         }
       );
-      // if(totpCodes.length)
-      //  console.log(response.data.code+" "+totpCodes[totpCodes.length-1].code);
-
-      //  if(totpCodes.length!=0 && response.data.code == totpCodes[totpCodes.length-1].code)return;
-
-      //  console.log("Code changed");
-
-      // if (response.data.message) {
-
-      //     setTotpCodes((prevCodes) =>
-      //       prevCodes.map((prevCode) =>
-      //         prevCode.id === code.id
-      //           ? {
-      //               ...prevCode,
-      //               code: response.data.code,
-      //               timeRemaining: response.data.timeRemaining,
-      //             }
-      //           : prevCode
-      //       )
-      //     );
-        
-      // }
+     
       let f = false;
       for(const totp of totpCodes){
         if(totp.account == code.account){
@@ -217,7 +170,6 @@ const AuthenticatorScreen: React.FC = () => {
           break;
         }
       }
-      console.log(response.data.code);
       
       if(f){
         setTotpCodes((prev)=>{
@@ -228,9 +180,7 @@ const AuthenticatorScreen: React.FC = () => {
       }else{
         setTotpCodes([...totpCodes,{...response.data,"account":code.account}]);
       }
-      console.log("code")
-      console.log(code)
-      // makeInterval(code);
+
     } catch (error) {
       
       console.error("Error updating TOTP:", error);
@@ -245,12 +195,6 @@ const AuthenticatorScreen: React.FC = () => {
     setAllIntervals([...allIntervales,newInterval]);
   }
 
-
-  
-
-  useEffect(()=>{
-    console.log(totpCodes);
-  },[totpCodes])
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     setScanned(true);
   
