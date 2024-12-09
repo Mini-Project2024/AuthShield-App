@@ -318,6 +318,7 @@ def update_totp():
 
         # Extract the account from the request
         user_account = request_data.get("account")
+        print(f"user account:{user_account}")
         if not user_account:
             return jsonify({"error": "Account missing in request payload"}), 400
 
