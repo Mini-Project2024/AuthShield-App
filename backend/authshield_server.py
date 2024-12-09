@@ -22,6 +22,16 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"])
 app.secret_key = os.getenv('SESSION_SECRET_KEY', 'supersecretkey')
+# Start the scheduler before the first request
+@app.before_first_request
+def start_scheduler():
+    if not scheduler.running:
+        scheduler.start()
+
+# Shutdown the scheduler after the app context is torn down
+@app.teardown_appcontext
+def shutdown_scheduler(exception=None):
+    scheduler.shutdown(wait=False)
 
 # Database configuration
 db_config = {
@@ -191,6 +201,62 @@ def get_totp_data():
         if 'conn' in locals():
             conn.close()
 
+def generate_totp_for_all_users():
+    try:
+        logger.info("=== Generating TOTP for All Users ===")
+        conn = get_db_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Fetch all users with their TOTP secret and lock the row to prevent conflicts
+        cursor.execute("SELECT user_uuid, totp_secret FROM user_totp FOR UPDATE")
+        users = cursor.fetchall()
+
+        for user in users:
+            user_uuid = user['user_uuid']
+            totp_secret = user['totp_secret']
+
+            # Generate TOTP
+            current_time = int(time.time())
+            window_start = current_time - (current_time % 30)
+
+            totp = AlphanumericTOTP(secret=totp_secret, digits=6, interval=30)
+            current_code = totp.generate_otp(window_start)
+
+            # Begin transaction to update the database
+            conn.start_transaction()
+
+            try:
+                cursor.execute(
+                    "UPDATE user_totp SET next_code = %s  WHERE user_uuid = %s",
+                    (current_code, user_uuid)
+                )
+                conn.commit()
+                logger.info(f"Successfully updated TOTP for UUID: {user_uuid}")
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"Error updating TOTP for UUID {user_uuid}: {str(e)}")
+
+    except Exception as e:
+        logger.error(f"Error generating TOTP for all users: {str(e)}")
+    finally:
+        if 'cursor' in locals():
+            cursor.close()
+        if 'conn' in locals():
+            conn.close()
+
+
+# Initialize the scheduler
+scheduler = BackgroundScheduler()
+# Schedule the job to run every 30 seconds
+scheduler.add_job(
+    generate_totp_for_all_users,  # Function to call
+    'interval',                  # Trigger type
+    seconds=30,                  # Interval
+    id="generate_totp_job",      # Unique job ID
+    replace_existing=True        # Replace if the job ID already exists
+)
+
+scheduler.start()
 
 # Logout route
 @app.route("/logout", methods=["POST"])
@@ -281,10 +347,14 @@ def scan_qr():
         finally:
             cursor.close()
             conn.close()
+        
+        time_remained = generate_totp(totp_secret,user_uuid_from_qr)
         schedule_totp_for_user(user_uuid_from_qr, totp_secret)
         return jsonify({
             "message": "QR code processed successfully",
-            "decrypted_url": decrypted_url
+            "decrypted_url": decrypted_url,
+            "timeRemaining": time_remained,
+            "account": account
         }), 200
 
     except requests.RequestException as e:
@@ -347,17 +417,19 @@ def generate_totp(totp_secret, user_uuid):
 
         logging.info(f"Current TOTP Code: {current_code}")
         logging.info(f"Time until next code: {time_until_next} seconds")
-        
+        logging.info(f"User UUID: {user_uuid}")
+
         conn = get_db_connection()
         cursor = conn.cursor()
-        cursor.execute("INSERT INTO user_totp(next_code) VALUES(%s) WHERE user_uuid = %s", (current_code,user_uuid))
+        cursor.execute("UPDATE user_totp SET next_code = %s WHERE user_uuid = %s", (current_code,user_uuid))
         conn.commit()
         cursor.close()
         conn.close()
-        return current_code, time_until_next
+        return time_until_next
     except Exception as e:
         logging.error(f"Error generating TOTP: {e}")
         return None, None
+
 
 @app.route("/get-updated-totp", methods=["POST"])
 @cross_origin()
