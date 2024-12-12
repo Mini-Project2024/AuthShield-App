@@ -162,6 +162,7 @@ const AuthenticatorScreen: React.FC = () => {
           timeout: 30000,  // You can adjust this if necessary
         }
       );
+     console.log(response.data);
      
       let f = false;
       for(const totp of totpCodes){
@@ -191,7 +192,7 @@ const AuthenticatorScreen: React.FC = () => {
     const newInterval = setInterval(async ()=>{
       console.log("Called")
       await getCode(code);
-    }, 14000); // Trigger after timeRemaining
+    }, 1000); // Trigger after timeRemaining
     setAllIntervals([...allIntervales,newInterval]);
   }
 
@@ -275,56 +276,6 @@ const AuthenticatorScreen: React.FC = () => {
   };
   
   const addNewTotp = async () => {
-    // if (setupKey.trim() !== "") {
-    //   try {
-    //     // Make an API request to generate the TOTP code using the setup key
-    //     const response = await axios.post(
-    //       "http://13.203.127.173:5000/generateTotp", // Replace with your backend endpoint to generate TOTP
-    //       {
-    //         account: "account", // Add proper account data
-    //       },
-    //       {
-    //         headers: {
-    //           "Content-Type": "application/json",
-    //           Accept: "application/json",
-    //         },
-    //       }
-    //     );
-  
-    //     const { uid, account, code, timeRemaining } = response.data;
-  
-    //     // Check if the account already exists in the totpCodes array
-    //     setTotpCodes((prevCodes) => {
-    //       // If the account exists, update the code; otherwise, add a new entry
-    //       const existingAccountIndex = prevCodes.findIndex(
-    //         (item) => item.account === account
-    //       );
-  
-    //       if (existingAccountIndex >= 0) {
-    //         // Account exists, update the TOTP code and timeRemaining
-    //         const updatedCodes = [...prevCodes];
-    //         updatedCodes[existingAccountIndex] = {
-    //           id: uid,
-    //           account,
-    //           code,
-    //           timeRemaining,
-    //         };
-    //         return updatedCodes;
-    //       } else {
-    //         // Account doesn't exist, add a new entry
-    //         return [
-    //           ...prevCodes,
-    //           { id: uid, account, code, timeRemaining },
-    //         ];
-    //       }
-    //     });
-  
-    //     setModalVisible(false);
-    //     setSetupKey("");
-    //   } catch (error) {
-    //     console.error("Error generating TOTP:", error);
-    //   }
-    // }
   };
   
   if (permission === null) {
@@ -376,7 +327,6 @@ const AuthenticatorScreen: React.FC = () => {
         <FlatList
           data={totpCodes}
           renderItem={renderCodeItem}
-          keyExtractor={(item) => item.account}
           contentContainerStyle={styles.listContainer}
         />
         <FloatingButton onPress={() => setModalVisible(true)} />

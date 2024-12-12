@@ -5,33 +5,28 @@ import mysql.connector
 from flask_cors import CORS, cross_origin
 import bcrypt
 import os
-import re
 import time
+import pytz
 from functools import wraps
 from datetime import datetime, timezone
+from dotenv import load_dotenv
 import requests
 from alphanumeric_totp import AlphanumericTOTP
 from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
+
+time_zone = pytz.timezone("Asia/Kolkata")
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+load_dotenv()
 
 # Flask app configuration
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, allow_headers=["Content-Type", "Authorization"])
 app.secret_key = os.getenv('SESSION_SECRET_KEY', 'supersecretkey')
-# Start the scheduler before the first request
-@app.before_first_request
-def start_scheduler():
-    if not scheduler.running:
-        scheduler.start()
-
-# Shutdown the scheduler after the app context is torn down
-@app.teardown_appcontext
-def shutdown_scheduler(exception=None):
-    scheduler.shutdown(wait=False)
 
 # Database configuration
 db_config = {
@@ -171,7 +166,7 @@ def get_totp_data():
 
         # Fetch account, next_code, and user UUID
         cursor.execute(
-            "SELECT account, next_code, uid FROM user_totp WHERE uid = %s AND 2faenabled = 1", 
+            "SELECT account, next_code,  uid  FROM user_totp WHERE uid = %s AND 2faenabled = 1", 
             (uid,)
         )
         totp_records = cursor.fetchall()
@@ -179,7 +174,7 @@ def get_totp_data():
         # Structure the response
         totp_data = [
             {
-                "id": record[2],  
+                "id": record[2], 
                 "account": record[0],
                 "code": record[1] or "",  # Default to empty string if `next_code` is None
                 "timeRemaining": 30  # Initialize countdown
@@ -201,62 +196,7 @@ def get_totp_data():
         if 'conn' in locals():
             conn.close()
 
-def generate_totp_for_all_users():
-    try:
-        logger.info("=== Generating TOTP for All Users ===")
-        conn = get_db_connection()
-        cursor = conn.cursor(dictionary=True)
 
-        # Fetch all users with their TOTP secret and lock the row to prevent conflicts
-        cursor.execute("SELECT user_uuid, totp_secret FROM user_totp FOR UPDATE")
-        users = cursor.fetchall()
-
-        for user in users:
-            user_uuid = user['user_uuid']
-            totp_secret = user['totp_secret']
-
-            # Generate TOTP
-            current_time = int(time.time())
-            window_start = current_time - (current_time % 30)
-
-            totp = AlphanumericTOTP(secret=totp_secret, digits=6, interval=30)
-            current_code = totp.generate_otp(window_start)
-
-            # Begin transaction to update the database
-            conn.start_transaction()
-
-            try:
-                cursor.execute(
-                    "UPDATE user_totp SET next_code = %s  WHERE user_uuid = %s",
-                    (current_code, user_uuid)
-                )
-                conn.commit()
-                logger.info(f"Successfully updated TOTP for UUID: {user_uuid}")
-            except Exception as e:
-                conn.rollback()
-                logger.error(f"Error updating TOTP for UUID {user_uuid}: {str(e)}")
-
-    except Exception as e:
-        logger.error(f"Error generating TOTP for all users: {str(e)}")
-    finally:
-        if 'cursor' in locals():
-            cursor.close()
-        if 'conn' in locals():
-            conn.close()
-
-
-# Initialize the scheduler
-scheduler = BackgroundScheduler()
-# Schedule the job to run every 30 seconds
-scheduler.add_job(
-    generate_totp_for_all_users,  # Function to call
-    'interval',                  # Trigger type
-    seconds=30,                  # Interval
-    id="generate_totp_job",      # Unique job ID
-    replace_existing=True        # Replace if the job ID already exists
-)
-
-scheduler.start()
 
 # Logout route
 @app.route("/logout", methods=["POST"])
@@ -364,53 +304,52 @@ def scan_qr():
         logger.error(f"Scan QR error: {str(e)}")
         return jsonify({"error": f"Failed to process QR code: {str(e)}"}), 500
 
-
-# @app.route("/generateTotp", methods=["POST"])
-# @cross_origin()
-# @login_required
-# def generate_totp_from_account():
-#     logger.info("=== Generate TOTP Request Start ===")
-#     try:
-#         request_data = request.get_json()
-#         account = request_data.get("account")
+@app.route("/generateTotp", methods=["POST"])
+@cross_origin()
+@login_required
+def generate_totp_from_account():
+    logger.info("=== Generate TOTP Request Start ===")
+    try:
+        request_data = request.get_json()
+        account = request_data.get("account")
         
-#         if not account:
-#             return jsonify({"error": "Account is required"}), 400
+        if not account:
+            return jsonify({"error": "Account is required"}), 400
 
-#         # Fetch the TOTP secret from the database for the given account
-#         conn = get_db_connection()
-#         cursor = conn.cursor()
-#         cursor.execute("SELECT totp_secret,uid FROM user_totp WHERE account = %s", (account,))
-#         result = cursor.fetchone()
+        # Fetch the TOTP secret from the database for the given account
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT totp_secret,uid FROM user_totp WHERE account = %s", (account,))
+        result = cursor.fetchone()
         
-#         if result is None:
-#             return jsonify({"error": "TOTP secret not found for the account"}), 404
+        if result is None:
+            return jsonify({"error": "TOTP secret not found for the account"}), 404
 
-#         totp_secret = result[0] 
-#         uid=result[1]
-#         conn.close()
+        totp_secret = result[0] 
+        uid=result[1]
+        conn.close()
 
-#         # Use the secret to generate the TOTP code
-#         current_code, time_remaining = generate_totp(totp_secret)
-#         if current_code is None:
-#             return jsonify({"error": "Failed to generate TOTP"}), 500
+        # Use the secret to generate the TOTP code
+        current_code, time_remaining = generate_totp(totp_secret)
+        if current_code is None:
+            return jsonify({"error": "Failed to generate TOTP"}), 500
 
-#         return jsonify({
-#             "uid":uid ,
-#             "account": account,
-#             "code": current_code,
-#             "timeRemaining": time_remaining
-#         }), 200
+        return jsonify({
+            "uid":uid ,
+            "account": account,
+            "code": current_code,
+            "timeRemaining": time_remaining
+        }), 200
 
-#     except Exception as e:
-#         logger.error(f"Error in /generateTotp: {str(e)}")
-#         return jsonify({"error": f"Failed to process TOTP generation: {str(e)}"}), 500
+    except Exception as e:
+        logger.error(f"Error in /generateTotp: {str(e)}")
+        return jsonify({"error": f"Failed to process TOTP generation: {str(e)}"}), 500
     
 def generate_totp(totp_secret, user_uuid):
     try:
-        current_time = int(time.time())
-        window_start = current_time - (current_time % 30)
-        time_until_next = 30 - (current_time % 30)
+        current_time = int(datetime.now(time_zone).timestamp())
+        window_start = current_time - (current_time % 45)
+        time_until_next = 45 - (current_time % 45)
 
         totp = AlphanumericTOTP(secret=totp_secret, digits=6, interval=30)
         current_code = totp.generate_otp(window_start)
@@ -430,28 +369,6 @@ def generate_totp(totp_secret, user_uuid):
         logging.error(f"Error generating TOTP: {e}")
         return None, None
 
-
-@app.route("/get-updated-totp", methods=["POST"])
-@cross_origin()
-@login_required
-def code_gen():
-    try:
-        request_data = request.get_json()  # Parse JSON payload
-        logger.info(f"TOTP Update Data Received: {request_data}")
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT * FROM user_totp WHERE user_uuid = %s", (request_data.uuid,))
-        updated_data = cursor.fetchall()
-        print(f"Retrieved Data from Database: {updated_data}")
-        conn.close()
-        return jsonify({
-            "message": "TOTP code updated successfully",
-            "code": updated_data,
-        }), 200
-    except Exception as e:
-        logger.error(f"Update TOTP error: {str(e)}")
-        return jsonify({"error": f"Failed to update TOTP: {str(e)}"}), 500
-
 @app.route("/update-totp", methods=["POST"])
 @cross_origin()
 @login_required
@@ -463,7 +380,6 @@ def update_totp():
 
         # Extract the account from the request
         user_account = request_data.get("account")
-        print(f"user account:{user_account}")
         if not user_account:
             return jsonify({"error": "Account missing in request payload"}), 400
 
@@ -481,24 +397,23 @@ def update_totp():
 
         # Generate the current TOTP code using the secret
         totp = AlphanumericTOTP(secret=totp_secret, digits=6, interval=30)
+        logger.info(f"TOTP: {totp}")
         current_time = int(time.time())
-        window_start = current_time - (current_time % 30)
+        window_start = current_time - (current_time % 45)
         current_code = totp.generate_otp(window_start)
-
+ 	
         # Return the TOTP code and the time remaining until the next code
-        time_until_next = 30 - (current_time % 30)
-        logger.info(totp)
+        time_until_next = 45 - (current_time % 45)
+
         return jsonify({
             "message": "TOTP code updated successfully",
             "code": current_code,
             "timeRemaining": time_until_next
         }), 200
-       
-
     except Exception as e:
         logger.error(f"Update TOTP error: {str(e)}")
         return jsonify({"error": f"Failed to update TOTP: {str(e)}"}), 500
-    
+
 # Function to schedule TOTP generation every 30 seconds
 def schedule_totp_for_user(user_uuid, totp_secret):
     scheduler = BackgroundScheduler()
@@ -511,6 +426,27 @@ def schedule_totp_for_user(user_uuid, totp_secret):
     )
     scheduler.start()
     logging.info(f"Scheduled TOTP generation job for user: {user_uuid}")
+
+@app.route("/get-updated-totp", methods=["POST"])
+@cross_origin()
+@login_required
+def code_gen():
+    try:
+        request_data = request.get_json()  # Parse JSON payload
+        logger.info(f"TOTP Update Data Received: {request_data}")
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM user_totp WHERE account = %s", (request_data['account'],))
+        updated_data = cursor.fetchall()
+        print(f"Retrieved Data from Database: {updated_data}")
+        conn.close()
+        return jsonify({
+            "message": "TOTP code updated successfully",
+            "code": updated_data[0][4],
+        }), 200
+    except Exception as e:
+        logger.error(f"Update TOTP error: {str(e)}")
+        return jsonify({"error": f"Failed to update TOTP: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
